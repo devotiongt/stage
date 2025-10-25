@@ -40,7 +40,7 @@ function App() {
 
   return (
     <AuthProvider>
-      <Router basename="/stage">
+      <Router>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/signup" element={<ApplyPage />} />
