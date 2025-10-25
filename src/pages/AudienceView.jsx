@@ -690,7 +690,7 @@ function AudienceView() {
             <textarea
               value={newQuestion}
               onChange={(e) => setNewQuestion(e.target.value)}
-              rows="3"
+              rows="5"
               required
               placeholder="Escribe tu pregunta aquí..."
             />
@@ -712,49 +712,55 @@ function AudienceView() {
         ) : (
           <div className="question-list">
             {questions.map((question) => (
-              <div 
-                key={question.id} 
+              <div
+                key={question.id}
                 className={`question-card ${question.is_answered ? 'answered' : ''} ${question.is_featured ? 'featured' : ''}`}
               >
-                <div className="question-header">
-                  <span className="question-author">{question.author_name}</span>
+                <p className="question-content">{question.content}</p>
+
+                <div className="question-meta">
+                  <span className="question-author">
+                    <span className="material-icons">person</span>
+                    {question.author_name}
+                  </span>
                   <span className="question-time">
+                    <span className="material-icons">schedule</span>
                     {new Date(question.created_at).toLocaleTimeString()}
                   </span>
                 </div>
-                
-                <p className="question-content">{question.content}</p>
-                
+
                 <div className="question-actions">
-                  {(() => {
-                    const hasVoted = votedQuestions.has(question.id)
-                    const isDisabled = question.is_answered || hasVoted
-                    
-                    return (
-                      <button 
-                        className={`btn ${hasVoted ? 'btn-voted' : 'btn-secondary'}`}
-                        onClick={() => handleVote(question.id, question.votes)}
-                        disabled={isDisabled}
-                        title={hasVoted ? 'Ya votaste por esta pregunta' : 'Votar por esta pregunta'}
-                      >
-                        <span className="material-icons" style={{ fontSize: '1rem', marginRight: '0.25rem' }}>
-                          {hasVoted ? 'check' : 'thumb_up'}
-                        </span>
-                        {hasVoted ? 'Votado' : 'Votar'}
-                      </button>
-                    )
-                  })()}
-                  <span className="vote-count">
-                    {question.votes} votos
-                  </span>
+                  <div className="vote-group">
+                    {(() => {
+                      const hasVoted = votedQuestions.has(question.id)
+                      const isDisabled = question.is_answered || hasVoted
+
+                      return (
+                        <button
+                          className={`btn ${hasVoted ? 'btn-voted' : 'btn-secondary'}`}
+                          onClick={() => handleVote(question.id, question.votes)}
+                          disabled={isDisabled}
+                          title={hasVoted ? 'Ya votaste por esta pregunta' : 'Votar por esta pregunta'}
+                        >
+                          <span className="material-icons" style={{ fontSize: '1rem', marginRight: '0.25rem' }}>
+                            {hasVoted ? 'check' : 'thumb_up'}
+                          </span>
+                          {hasVoted ? 'Votado' : 'Votar'}
+                        </button>
+                      )
+                    })()}
+                    <span className="vote-count">
+                      {question.votes} votos
+                    </span>
+                  </div>
                   {question.is_featured && (
-                    <span style={{ color: '#f59e0b', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <span className="badge-featured">
                       <span className="material-icons" style={{ fontSize: '1rem' }}>star</span>
                       Destacada
                     </span>
                   )}
                   {question.is_answered && (
-                    <span style={{ color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <span className="badge-answered">
                       <span className="material-icons" style={{ fontSize: '1rem' }}>check_circle</span>
                       Respondida
                     </span>
