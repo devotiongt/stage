@@ -310,7 +310,7 @@ function LoginPage() {
 
           <div className="devotion-credit">
             <p>Un proyecto de</p>
-            <img src="/stage/devotion-logo.png" alt="Devotion" />
+            <img src="/devotion-logo.png" alt="Devotion" />
           </div>
         </div>
       </div>

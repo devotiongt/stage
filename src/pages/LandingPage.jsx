@@ -339,7 +339,7 @@ function LandingPage() {
         <div className="container">
           <div className="devotion-content">
             <div className="devotion-logo">
-              <img src="/stage/devotion-logo.png" alt="Devotion" />
+              <img src="/devotion-logo.png" alt="Devotion" />
             </div>
             <div className="devotion-info">
               <h3>Un Proyecto de Devotion</h3>
@@ -413,7 +413,7 @@ function LandingPage() {
               <div className="footer-devotion">
                 <p>Desarrollado por</p>
                 <a href="https://devotiongt.org" target="_blank" rel="noopener noreferrer">
-                  <img src="/stage/devotion-logo.png" alt="Devotion" style={{ height: '30px', marginTop: '0.5rem' }} />
+                  <img src="/devotion-logo.png" alt="Devotion" style={{ height: '30px', marginTop: '0.5rem' }} />
                 </a>
               </div>
             </div>

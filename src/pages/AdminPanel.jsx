@@ -382,7 +382,7 @@ function AdminPanel() {
 
   const copyEventLink = () => {
     // Usar el código de acceso en lugar del ID para un enlace más simple
-    const eventUrl = `${window.location.origin}/stage/event/${event.access_code}`
+    const eventUrl = `${window.location.origin}/event/${event.access_code}`
     copyToClipboard(eventUrl, 'Enlace')
   }
 
@@ -594,10 +594,10 @@ function AdminPanel() {
               Acciones Rápidas
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <button 
+              <button
                 className="btn btn-primary"
-                onClick={() => window.open(`/stage/presentation/${eventId}`, '_blank', 'fullscreen=yes')}
-                style={{ 
+                onClick={() => window.open(`/presentation/${eventId}`, '_blank', 'fullscreen=yes')}
+                style={{
                   background: 'linear-gradient(135deg, #ff006e, #8338ec)',
                   justifyContent: 'flex-start'
                 }}

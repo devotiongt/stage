@@ -572,7 +572,7 @@ function PresentationScreen() {
         )
 
       case 'qr_code':
-        const eventUrl = `${window.location.origin}/stage/event/${event?.access_code}`
+        const eventUrl = `${window.location.origin}/event/${event?.access_code}`
         return (
           <div className="presentation-content qr-code">
             <div className="qr-section-horizontal">
@@ -593,7 +593,7 @@ function PresentationScreen() {
                   <h3>Código de Acceso</h3>
                   <div className="access-code">{event?.access_code}</div>
                   <p>Escanea el código QR o ingresa a:</p>
-                  <p className="event-url"><strong>{window.location.host}/stage/event/{event?.access_code}</strong></p>
+                  <p className="event-url"><strong>{window.location.host}/event/{event?.access_code}</strong></p>
                 </div>
               </div>
             </div>
