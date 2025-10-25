@@ -203,11 +203,77 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  // Función para asignar roles a usuarios (solo para super_admin)
+  const assignUserRole = async (userEmail, newRole) => {
+    try {
+      if (userRole !== 'super_admin') {
+        throw new Error('Solo los super administradores pueden asignar roles')
+      }
+
+      // Validar que el rol sea válido (solo super_admin o user)
+      if (newRole !== 'super_admin' && newRole !== 'user') {
+        throw new Error('Rol inválido. Solo se permite: super_admin o user')
+      }
+
+      console.log('Asignando rol:', { userEmail, newRole, assignedBy: user?.email })
+      
+      // Actualizar rol en metadata usando función RPC de Supabase
+      const { data, error } = await supabase.rpc('update_user_role', {
+        target_email: userEmail,
+        new_role: newRole
+      })
+
+      if (error) {
+        console.error('Error actualizando rol:', error)
+        throw error
+      }
+
+      console.log('Rol asignado exitosamente')
+      return { error: null }
+    } catch (error) {
+      console.error('Error in assignUserRole:', error)
+      return { error }
+    }
+  }
+
+  // Sistema de roles simplificado - Solo super_admin o user
+  const getUserRole = () => {
+    if (!user) return 'guest'
+    
+    // Si tiene rol super_admin en metadata, es super admin
+    if (user.user_metadata?.role === 'super_admin') {
+      return 'super_admin'
+    }
+    
+    // Todos los demás son usuarios normales
+    return 'user'
+  }
+
+  const userRole = getUserRole()
+
+  const permissions = {
+    // Solo super_admin puede gestionar usuarios
+    canManageUsers: userRole === 'super_admin',
+    
+    // Todos pueden gestionar eventos (si están aprobados)
+    canManageEvents: user?.user_metadata?.status === 'approved',
+    
+    // Todos pueden crear eventos (si están aprobados)
+    canCreateEvents: user?.user_metadata?.status === 'approved',
+    
+    // Todos pueden acceder al dashboard (si están aprobados)
+    canAccessDashboard: user?.user_metadata?.status === 'approved',
+    
+    // Solo super_admin puede acceder a configuración
+    canManageSettings: userRole === 'super_admin'
+  }
+
   // Debug logs temporales
   console.log('🔍 Auth Debug:', {
     user: user?.email,
-    user_metadata: user?.user_metadata,
+    role: userRole,
     status: user?.user_metadata?.status,
+    permissions: permissions,
     isApproved: user?.user_metadata?.status === 'approved',
     isPending: user?.user_metadata?.status === 'pending_verification',
     isRejected: user?.user_metadata?.status === 'rejected'
@@ -217,6 +283,8 @@ export const AuthProvider = ({ children }) => {
     user,
     profile: user?.user_metadata || null,
     loading,
+    userRole,
+    permissions,
     signUp,
     signIn,
     signOut,
@@ -225,10 +293,12 @@ export const AuthProvider = ({ children }) => {
     refreshUser,
     getOrganizations,
     updateOrganizationStatus,
+    assignUserRole,
     isApproved: user?.user_metadata?.status === 'approved',
     isPending: user?.user_metadata?.status === 'pending_verification',
     isRejected: user?.user_metadata?.status === 'rejected',
-    isAdmin: user?.email === 'kevinalbertoorellana@gmail.com' || user?.user_metadata?.role === 'admin'
+    // Mantener compatibilidad hacia atrás
+    isAdmin: permissions.canManageUsers
   }
 
   return (

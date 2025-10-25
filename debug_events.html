@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Events</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Debug Events</h1>
+    <button onclick="checkEvents()">Check Events</button>
+    <button onclick="createTestEvent()">Create Test Event</button>
+    <div id="results"></div>
+
+    <script>
+        const { createClient } = supabase;
+        
+        // Necesitarás reemplazar con tus credenciales reales de Supabase
+        const supabaseUrl = 'your-supabase-url'
+        const supabaseKey = 'your-supabase-anon-key'
+        const client = createClient(supabaseUrl, supabaseKey);
+
+        async function checkEvents() {
+            try {
+                const { data, error } = await client
+                    .from('events')
+                    .select('id, name, access_code, status')
+                    .order('created_at', { ascending: false })
+                    .limit(10)
+                
+                if (error) {
+                    document.getElementById('results').innerHTML = `Error: ${error.message}`;
+                    return;
+                }
+                
+                let html = '<h2>Eventos encontrados:</h2>';
+                data.forEach(event => {
+                    html += `<div>
+                        <strong>${event.name}</strong> - Código: ${event.access_code} - Estado: ${event.status}
+                        <br>ID: ${event.id}
+                        <br>URL: /stage/event/${event.access_code}
+                        <hr>
+                    </div>`;
+                });
+                
+                document.getElementById('results').innerHTML = html;
+            } catch (err) {
+                document.getElementById('results').innerHTML = `Error: ${err.message}`;
+            }
+        }
+
+        async function createTestEvent() {
+            try {
+                const { data, error } = await client
+                    .from('events')
+                    .insert({
+                        name: 'Evento de Prueba',
+                        description: 'Evento creado para probar encuestas',
+                        access_code: 'TEST01',
+                        admin_code: 'ADMIN01',
+                        status: 'active'
+                    })
+                    .select()
+                    .single()
+                
+                if (error) {
+                    document.getElementById('results').innerHTML = `Error creating event: ${error.message}`;
+                    return;
+                }
+                
+                document.getElementById('results').innerHTML = `
+                    <h2>Evento creado:</h2>
+                    <div>
+                        <strong>${data.name}</strong><br>
+                        Código de acceso: ${data.access_code}<br>
+                        Código de admin: ${data.admin_code}<br>
+                        URL pública: /stage/event/${data.access_code}<br>
+                        URL admin: /stage/admin/${data.access_code}
+                    </div>
+                `;
+                
+            } catch (err) {
+                document.getElementById('results').innerHTML = `Error: ${err.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

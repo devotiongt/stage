@@ -10,6 +10,7 @@ import ApplyPage from './pages/ApplyPage'
 import LoginPage from './pages/LoginPage'
 import StatusPage from './pages/StatusPage'
 import AdminVerificationPanel from './pages/AdminVerificationPanel'
+import PresentationScreen from './pages/PresentationScreen'
 import ProtectedRoute from './components/ProtectedRoute'
 import './App.css'
 
@@ -49,6 +50,7 @@ function App() {
           <Route path="/dashboard" element={<ProtectedRoute><EventDashboard events={events} onRefresh={fetchEvents} /></ProtectedRoute>} />
           <Route path="/event/:eventId" element={<AudienceView />} />
           <Route path="/admin/:eventId" element={<AdminPanel />} />
+          <Route path="/presentation/:eventId" element={<PresentationScreen />} />
         </Routes>
       </Router>
     </AuthProvider>

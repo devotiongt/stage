@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../lib/supabase'
 import './LandingPage.css'
 
 function LandingPage() {
@@ -8,11 +9,41 @@ function LandingPage() {
   const { user, isApproved } = useAuth()
   const [eventCode, setEventCode] = useState('')
   const [showJoinModal, setShowJoinModal] = useState(false)
+  const [joinLoading, setJoinLoading] = useState(false)
+  const [joinError, setJoinError] = useState('')
 
-  const handleJoinEvent = (e) => {
+  const handleJoinEvent = async (e) => {
     e.preventDefault()
-    if (eventCode.trim()) {
-      navigate(`/event/${eventCode}`)
+    if (!eventCode.trim()) return
+
+    setJoinLoading(true)
+    setJoinError('')
+
+    try {
+      // Buscar el evento por access_code
+      const { data, error } = await supabase
+        .from('events')
+        .select('id, status')
+        .eq('access_code', eventCode.toUpperCase())
+        .single()
+
+      if (error || !data) {
+        setJoinError('Código de evento no válido')
+        return
+      }
+
+      if (data.status === 'ended') {
+        setJoinError('Este evento ya ha finalizado')
+        return
+      }
+
+      // Redirigir al evento
+      navigate(`/event/${data.id}`)
+    } catch (error) {
+      console.error('Error joining event:', error)
+      setJoinError('Error al buscar el evento')
+    } finally {
+      setJoinLoading(false)
     }
   }
 
@@ -421,19 +452,55 @@ function LandingPage() {
             </button>
             <h3>Unirse a un Evento</h3>
             <p>Ingresa el código proporcionado por la organización</p>
+            
+            {joinError && (
+              <div style={{ 
+                background: 'rgba(239, 68, 68, 0.1)', 
+                border: '1px solid rgba(239, 68, 68, 0.3)', 
+                borderRadius: '8px', 
+                padding: '0.75rem', 
+                marginBottom: '1rem',
+                color: '#ef4444',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <span className="material-icons" style={{ fontSize: '1.2rem' }}>error</span>
+                {joinError}
+              </div>
+            )}
+            
             <form onSubmit={handleJoinEvent}>
               <input
                 type="text"
-                placeholder="Código del evento"
+                placeholder="Ejemplo: ABC123"
                 value={eventCode}
-                onChange={(e) => setEventCode(e.target.value.toUpperCase())}
+                onChange={(e) => {
+                  setEventCode(e.target.value.toUpperCase())
+                  setJoinError('')
+                }}
                 className="modal-input"
                 autoFocus
                 required
+                disabled={joinLoading}
+                maxLength={6}
               />
-              <button type="submit" className="btn-modal-submit">
-                <span className="material-icons">login</span>
-                Unirse al Evento
+              <button 
+                type="submit" 
+                className="btn-modal-submit"
+                disabled={joinLoading || !eventCode.trim()}
+              >
+                {joinLoading ? (
+                  <>
+                    <span className="material-icons spinning">refresh</span>
+                    Buscando evento...
+                  </>
+                ) : (
+                  <>
+                    <span className="material-icons">login</span>
+                    Unirse al Evento
+                  </>
+                )}
               </button>
             </form>
           </div>

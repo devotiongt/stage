@@ -2,20 +2,64 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import DashboardLayout from '../components/DashboardLayout'
 import '../pages/LandingPage.css'
 
 function EventDashboard({ events, onRefresh }) {
   const navigate = useNavigate()
   const { isAdmin } = useAuth()
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [showEventTypeModal, setShowEventTypeModal] = useState(false)
+  const [selectedEventType, setSelectedEventType] = useState(null)
+  const [createdEvent, setCreatedEvent] = useState(null)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
   const [newEvent, setNewEvent] = useState({
     name: '',
     description: '',
-    access_code: ''
+    access_code: '',
+    type: 'panel'
   })
+
+  const eventTypes = [
+    {
+      id: 'panel',
+      name: 'Panel de Preguntas',
+      description: 'Permite al público hacer preguntas en tiempo real',
+      icon: 'question_answer',
+      color: '#8338ec'
+    }
+    // Futuras opciones:
+    // {
+    //   id: 'poll',
+    //   name: 'Encuesta en Vivo',
+    //   description: 'Crear encuestas y votaciones interactivas',
+    //   icon: 'poll',
+    //   color: '#3a86ff'
+    // },
+    // {
+    //   id: 'quiz',
+    //   name: 'Quiz Interactivo',
+    //   description: 'Juegos de preguntas y respuestas',
+    //   icon: 'quiz',
+    //   color: '#ff006e'
+    // }
+  ]
+
+  const handleCreateEventClick = () => {
+    setShowEventTypeModal(true)
+  }
+
+  const handleEventTypeSelect = (eventType) => {
+    setSelectedEventType(eventType)
+    setNewEvent({ ...newEvent, type: eventType.id })
+    setShowEventTypeModal(false)
+    setShowCreateForm(true)
+  }
 
   const handleCreateEvent = async (e) => {
     e.preventDefault()
+    setIsCreating(true)
     
     try {
       const accessCode = newEvent.access_code || Math.random().toString(36).substring(2, 8).toUpperCase()
@@ -28,6 +72,7 @@ function EventDashboard({ events, onRefresh }) {
           description: newEvent.description,
           access_code: accessCode,
           admin_code: adminCode,
+          type: newEvent.type,
           status: 'active'
         })
         .select()
@@ -35,16 +80,29 @@ function EventDashboard({ events, onRefresh }) {
       
       if (error) {
         console.error('Error creating event:', error)
+        // TODO: Mostrar error en la interfaz
         alert('Error al crear el evento')
       } else {
-        alert(`Evento creado! \nCódigo de acceso: ${accessCode}\nCódigo de admin: ${adminCode}`)
-        setNewEvent({ name: '', description: '', access_code: '' })
+        // Guardar el evento creado para mostrar en el modal de éxito
+        setCreatedEvent({ ...data, access_code: accessCode })
+        setShowSuccessModal(true)
+        setNewEvent({ name: '', description: '', access_code: '', type: 'panel' })
         setShowCreateForm(false)
+        setSelectedEventType(null)
         onRefresh()
       }
     } catch (error) {
       console.error('Error:', error)
+      alert('Error inesperado al crear el evento')
+    } finally {
+      setIsCreating(false)
     }
+  }
+
+  const handleCancelCreate = () => {
+    setShowCreateForm(false)
+    setSelectedEventType(null)
+    setNewEvent({ name: '', description: '', access_code: '', type: 'panel' })
   }
 
   const getEventStatus = (event) => {
@@ -53,48 +111,154 @@ function EventDashboard({ events, onRefresh }) {
   }
 
   return (
-    <div className="dashboard-container">
-      <nav className="navbar">
-        <div className="nav-container">
-          <div className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-            <span className="material-icons logo-icon">theater_comedy</span>
-            <span className="logo-text">Stage</span>
-          </div>
-          <div className="nav-links">
-            {isAdmin && (
+    <>
+      {/* Modal para seleccionar tipo de evento - Renderizado al nivel raíz */}
+      {showEventTypeModal && (
+        <div className="modal-overlay" onClick={() => setShowEventTypeModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Selecciona el tipo de evento</h2>
               <button 
-                className="btn btn-primary" 
-                onClick={() => navigate('/admin-verification')}
-                style={{ marginRight: '1rem' }}
+                className="modal-close"
+                onClick={() => setShowEventTypeModal(false)}
               >
-                <span className="material-icons" style={{ marginRight: '0.5rem' }}>admin_panel_settings</span>
-                Gestión Usuarios
+                <span className="material-icons">close</span>
               </button>
-            )}
-            <button className="btn btn-secondary" onClick={() => navigate('/')}>
-              Inicio
-            </button>
+            </div>
+            
+            <div className="event-types-grid">
+              {eventTypes.map((eventType) => (
+                <div 
+                  key={eventType.id}
+                  className="event-type-card"
+                  onClick={() => handleEventTypeSelect(eventType)}
+                  style={{ borderColor: eventType.color }}
+                >
+                  <div className="event-type-icon" style={{ color: eventType.color }}>
+                    <span className="material-icons">{eventType.icon}</span>
+                  </div>
+                  <h3 style={{ color: eventType.color }}>{eventType.name}</h3>
+                  <p>{eventType.description}</p>
+                  <div className="event-type-badge">
+                    Disponible
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </nav>
-      
-      <div className="dashboard-inner" style={{ paddingTop: '5rem' }}>
-      <div className="card">
-        <h1>Panel de Control</h1>
-        <p style={{ color: 'rgba(255, 255, 255, 0.7)', marginBottom: '2rem' }}>
-          Gestiona tus eventos y modera las preguntas en tiempo real
-        </p>
-        
-        <button 
-          className="btn btn-primary"
-          onClick={() => setShowCreateForm(!showCreateForm)}
-        >
-          {showCreateForm ? 'Cancelar' : 'Crear Nuevo Evento'}
-        </button>
+      )}
+
+      {/* Modal de éxito */}
+      {showSuccessModal && createdEvent && (
+        <div className="modal-overlay" onClick={() => setShowSuccessModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 style={{ color: '#10b981' }}>
+                <span className="material-icons" style={{ verticalAlign: 'middle', marginRight: '0.5rem' }}>
+                  check_circle
+                </span>
+                ¡Evento Creado Exitosamente!
+              </h2>
+              <button 
+                className="modal-close"
+                onClick={() => setShowSuccessModal(false)}
+              >
+                <span className="material-icons">close</span>
+              </button>
+            </div>
+            
+            <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+              <h3 style={{ margin: '0 0 1rem 0', color: '#ffffff' }}>{createdEvent.name}</h3>
+              
+              <div style={{ 
+                background: 'rgba(16, 185, 129, 0.1)', 
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                borderRadius: '12px',
+                padding: '1.5rem',
+                marginBottom: '1.5rem'
+              }}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <span className="material-icons" style={{ 
+                    color: '#10b981', 
+                    fontSize: '1.2rem', 
+                    verticalAlign: 'middle', 
+                    marginRight: '0.5rem' 
+                  }}>
+                    key
+                  </span>
+                  <strong style={{ color: '#ffffff' }}>Código de Acceso para Asistentes:</strong>
+                </div>
+                <div style={{ 
+                  fontSize: '1.5rem', 
+                  fontWeight: 'bold', 
+                  color: '#10b981', 
+                  letterSpacing: '2px',
+                  fontFamily: 'monospace',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  padding: '0.75rem',
+                  borderRadius: '8px',
+                  border: '1px dashed rgba(16, 185, 129, 0.5)'
+                }}>
+                  {createdEvent.access_code}
+                </div>
+                <small style={{ color: 'rgba(255, 255, 255, 0.7)', display: 'block', marginTop: '0.5rem' }}>
+                  Comparte este código con los asistentes para que puedan unirse a tu evento
+                </small>
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                <button 
+                  className="btn btn-secondary"
+                  onClick={() => navigator.clipboard.writeText(createdEvent.access_code)}
+                >
+                  <span className="material-icons">content_copy</span>
+                  Copiar Código
+                </button>
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setShowSuccessModal(false)
+                    navigate(`/admin/${createdEvent.id}`)
+                  }}
+                >
+                  <span className="material-icons">settings</span>
+                  Gestionar Evento
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <DashboardLayout 
+        title="Panel de Control" 
+        subtitle="Gestiona tus eventos y modera las preguntas en tiempo real"
+      >
+        <div className="card">
+          
+          <button 
+            className="btn btn-primary"
+            onClick={showCreateForm ? handleCancelCreate : handleCreateEventClick}
+          >
+            {showCreateForm ? 'Cancelar' : 'Crear Nuevo Evento'}
+          </button>
 
         {showCreateForm && (
-          <form onSubmit={handleCreateEvent} style={{ marginTop: '2rem' }}>
-            <div className="input-group">
+          <div style={{ marginTop: '2rem' }}>
+            {selectedEventType && (
+              <div className="selected-event-type">
+                <div className="event-type-indicator">
+                  <span className="material-icons" style={{ color: selectedEventType.color }}>
+                    {selectedEventType.icon}
+                  </span>
+                  <span>Tipo: <strong>{selectedEventType.name}</strong></span>
+                </div>
+              </div>
+            )}
+            
+            <form onSubmit={handleCreateEvent}>
+              <div className="input-group">
               <label>Nombre del Evento</label>
               <input
                 type="text"
@@ -116,19 +280,34 @@ function EventDashboard({ events, onRefresh }) {
             </div>
             
             <div className="input-group">
-              <label>Código de Acceso (opcional)</label>
+              <label>Código de Acceso para Asistentes (opcional)</label>
               <input
                 type="text"
                 value={newEvent.access_code}
                 onChange={(e) => setNewEvent({ ...newEvent, access_code: e.target.value })}
                 placeholder="Dejar vacío para generar automáticamente"
               />
+              <small style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>
+                Los asistentes usarán este código para unirse a tu evento
+              </small>
             </div>
             
-            <button type="submit" className="btn btn-primary">
-              Crear Evento
-            </button>
-          </form>
+              <button 
+                type="submit" 
+                className="btn btn-primary" 
+                disabled={isCreating}
+              >
+                {isCreating ? (
+                  <>
+                    <span className="material-icons" style={{ animation: 'spin 1s linear infinite' }}>hourglass_empty</span>
+                    Creando Evento...
+                  </>
+                ) : (
+                  'Crear Evento'
+                )}
+              </button>
+            </form>
+          </div>
         )}
       </div>
 
@@ -156,16 +335,20 @@ function EventDashboard({ events, onRefresh }) {
                   {event.description}
                 </p>
                 <div style={{ fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.5)' }}>
-                  <p>Código de acceso: <strong style={{ color: '#8338ec' }}>{event.access_code}</strong></p>
-                  <p>Código admin: <strong style={{ color: '#ff006e' }}>{event.admin_code}</strong></p>
+                  <p>
+                    <span className="material-icons" style={{ fontSize: '1rem', verticalAlign: 'middle', marginRight: '0.25rem', color: '#8338ec' }}>
+                      key
+                    </span>
+                    Código para asistentes: <strong style={{ color: '#8338ec' }}>{event.access_code}</strong>
+                  </p>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
-      </div>
-    </div>
+    </DashboardLayout>
+    </>
   )
 }
 

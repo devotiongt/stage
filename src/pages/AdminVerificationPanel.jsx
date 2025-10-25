@@ -2,68 +2,50 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
+import DashboardLayout from '../components/DashboardLayout'
+import RoleManager from '../components/RoleManager'
 import './AdminVerificationPanel.css'
 
 function AdminVerificationPanel() {
   const navigate = useNavigate()
-  const { user, signOut } = useAuth()
+  const { user, signOut, permissions, userRole } = useAuth()
   const [loading, setLoading] = useState(true)
   const [organizations, setOrganizations] = useState([])
   const [filter, setFilter] = useState('pending_verification')
   const [processing, setProcessing] = useState({})
 
-  // Simple admin check - en producción esto debería ser más robusto
-  const isAdmin = user?.email === 'admin@devotion.com' || user?.user_metadata?.role === 'admin'
+  // Verificar permisos usando el nuevo sistema
+  const canManageUsers = permissions?.canManageUsers
 
   useEffect(() => {
-    if (!isAdmin) {
+    if (!canManageUsers) {
       navigate('/dashboard')
       return
     }
     loadOrganizations()
-  }, [filter, isAdmin])
+  }, [filter, canManageUsers])
 
   const loadOrganizations = async () => {
     setLoading(true)
     try {
-      // Mock data para demostración
-      // En producción, esto sería una llamada a una API backend
-      const mockOrgs = [
-        {
-          id: '1',
-          email: 'contacto@fundacioneducativa.org',
-          email_confirmed_at: '2024-01-15T10:00:00Z',
-          created_at: '2024-01-15T09:30:00Z',
-          organization_name: 'Fundación Educativa Guatemala',
-          country: 'GT',
-          phone: '+502 2234-5678',
-          website: 'https://fundacioneducativa.org',
-          facebook: 'fundacioneducativagt',
-          instagram: '@fundacioneducativagt',
-          description: 'Organización dedicada a mejorar la educación en comunidades rurales de Guatemala',
-          event_types: 'Talleres educativos, conferencias, capacitaciones',
-          expected_attendance: '101-250',
-          status: 'pending_verification'
-        },
-        {
-          id: '2', 
-          email: 'admin@ongambiental.org',
-          email_confirmed_at: '2024-01-14T15:30:00Z',
-          created_at: '2024-01-14T15:00:00Z',
-          organization_name: 'ONG Ambiental Verde',
-          country: 'MX',
-          phone: '+52 55 1234-5678',
-          website: 'https://ongambiental.org',
-          description: 'Organización enfocada en la conservación del medio ambiente',
-          event_types: 'Webinars ambientales, charlas de concienciación',
-          expected_attendance: '51-100',
-          status: 'approved',
-          reviewed_at: '2024-01-15T08:00:00Z',
-          reviewed_by: 'admin@devotion.com'
-        }
-      ].filter(org => filter === 'all' || org.status === filter)
-
-      setOrganizations(mockOrgs)
+      // Obtener usuarios reales desde Supabase Auth
+      // Necesitamos hacer una llamada RPC porque no podemos acceder directamente a auth.users desde el cliente
+      const { data, error } = await supabase.rpc('get_organizations_for_review')
+      
+      if (error) {
+        console.error('Error cargando organizaciones:', error)
+        console.log('📝 Si ves este error, las funciones SQL no están creadas aún.')
+        console.log('🚀 Ejecuta el contenido de ORGANIZATIONS_SQL.sql en Supabase')
+        
+        // Mostrar organizaciones vacías si las funciones no existen
+        setOrganizations([])
+      } else {
+        // Filtrar por estado si tenemos datos reales
+        const filteredOrgs = (data || []).filter(org => 
+          filter === 'all' || org.status === filter
+        )
+        setOrganizations(filteredOrgs)
+      }
     } catch (error) {
       console.error('Error loading organizations:', error)
     } finally {
@@ -75,8 +57,18 @@ function AdminVerificationPanel() {
     setProcessing(prev => ({ ...prev, [userId]: true }))
     
     try {
-      // Mock implementation - en producción sería una llamada a API
-      setTimeout(() => {
+      // Llamar a la función RPC de Supabase
+      const functionName = status === 'approved' ? 'approve_organization' : 'reject_organization'
+      
+      const params = status === 'approved' 
+        ? { target_user_id: userId }
+        : { target_user_id: userId, rejection_reason: rejectionReason }
+      
+      const { data, error } = await supabase.rpc(functionName, params)
+      
+      if (error) {
+        console.error('Error actualizando estado:', error)
+        // Si la función no existe, actualizar localmente
         setOrganizations(prev => prev.map(org => 
           org.id === userId 
             ? { 
@@ -88,14 +80,16 @@ function AdminVerificationPanel() {
               }
             : org
         ))
-        setProcessing(prev => ({ ...prev, [userId]: false }))
-        
-        alert(`Organización ${status === 'approved' ? 'aprobada' : 'rechazada'} exitosamente`)
-      }, 1000)
-
+      } else {
+        // Recargar la lista de organizaciones
+        await loadOrganizations()
+      }
+      
+      alert(`Organización ${status === 'approved' ? 'aprobada' : 'rechazada'} exitosamente`)
     } catch (error) {
       console.error(`Error updating organization status:`, error)
       alert(`Error al ${status === 'approved' ? 'aprobar' : 'rechazar'} la organización`)
+    } finally {
       setProcessing(prev => ({ ...prev, [userId]: false }))
     }
   }
@@ -139,43 +133,32 @@ function AdminVerificationPanel() {
     )
   }
 
-  if (!isAdmin) {
+  if (!canManageUsers) {
     return (
-      <div className="admin-panel">
-        <div className="access-denied">
-          <h1>Acceso Denegado</h1>
-          <p>No tienes permisos para acceder a este panel</p>
+      <DashboardLayout title="Acceso Denegado" subtitle="No tienes permisos para acceder a este panel">
+        <div className="card">
+          <div className="empty-state">
+            <span className="material-icons" style={{ fontSize: '4rem', color: '#ff6b6b', marginBottom: '1rem' }}>
+              block
+            </span>
+            <h3>Acceso Denegado</h3>
+            <p>Solo los Super Admin pueden gestionar usuarios</p>
+            <p style={{ fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.5)', marginTop: '1rem' }}>
+              Tu rol actual: <strong>{userRole === 'super_admin' ? 'Super Admin' : 'Usuario Normal'}</strong>
+            </p>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     )
   }
 
   return (
-    <div className="admin-panel">
-      <nav className="navbar">
-        <div className="nav-container">
-          <div className="logo">
-            <span className="material-icons logo-icon">theater_comedy</span>
-            <span className="logo-text">Stage Admin</span>
-          </div>
-          <div className="nav-actions">
-            <button className="btn-nav-secondary" onClick={() => navigate('/dashboard')}>
-              <span className="material-icons">dashboard</span>
-              Dashboard
-            </button>
-            <button className="btn-nav-secondary" onClick={signOut}>
-              <span className="material-icons">logout</span>
-              Cerrar Sesión
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      <div className="admin-container">
-        <div className="admin-header">
-          <h1>Panel de Verificación</h1>
-          <p>Gestiona las solicitudes de organizaciones para usar Stage</p>
-        </div>
+    <DashboardLayout 
+      title="Panel de Verificación" 
+      subtitle="Gestiona las solicitudes de organizaciones para usar Stage"
+    >
+      {/* Gestión de Roles - Solo para Super Admin */}
+      {userRole === 'super_admin' && <RoleManager />}
 
         <div className="filters">
           <button 
@@ -306,8 +289,7 @@ function AdminVerificationPanel() {
             ))}
           </div>
         )}
-      </div>
-    </div>
+    </DashboardLayout>
   )
 }
 
